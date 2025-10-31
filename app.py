@@ -6,173 +6,167 @@ import torch
 import os
 import sys
 
-# Configuración de página Streamlit
+# ⚙️ CONFIGURACIÓN GENERAL
 st.set_page_config(
-    page_title="Detección de Objetos en Tiempo Real",
-    page_icon="🔍",
+    page_title="🔍 Detección de Objetos en Tiempo Real",
+    page_icon="🤖",
     layout="wide"
 )
 
-# Función para cargar el modelo YOLOv5 de manera compatible con versiones anteriores de PyTorch
+# 🎨 ESTILOS PERSONALIZADOS (modo oscuro con neón)
+st.markdown("""
+<style>
+body {
+    background-color: #0e1117;
+    color: #e0e0e0;
+}
+.main {
+    background-color: #0e1117;
+    border-radius: 12px;
+    padding: 1rem;
+}
+h1, h2, h3, h4 {
+    color: #00ffc3;
+    text-shadow: 0 0 15px #00ffc3;
+}
+.stButton>button {
+    background-color: #00ffc3;
+    color: #0e1117;
+    border-radius: 8px;
+    font-weight: bold;
+    border: none;
+    transition: 0.3s;
+}
+.stButton>button:hover {
+    transform: scale(1.05);
+    background-color: #00e6af;
+}
+.stSidebar {
+    background-color: #111418;
+}
+.dataframe th {
+    background-color: #00ffc3 !important;
+    color: #0e1117 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# 🧠 FUNCIÓN PARA CARGAR MODELO YOLOv5
 @st.cache_resource
 def load_yolov5_model(model_path='yolov5s.pt'):
     try:
-        # Importar yolov5
         import yolov5
-        
-        # Para versiones de PyTorch anteriores a 2.0, cargar directamente con weights_only=False
-        # o usar el parámetro map_location para asegurar compatibilidad
         try:
-            # Primer método: cargar con weights_only=False si la versión lo soporta
             model = yolov5.load(model_path, weights_only=False)
             return model
         except TypeError:
-            # Segundo método: si el primer método falla, intentar un enfoque más básico
-            try:
-                model = yolov5.load(model_path)
-                return model
-            except Exception as e:
-                # Si todo falla, intentar cargar el modelo con torch directamente
-                st.warning(f"Intentando método alternativo de carga...")
-                
-                # Modificar sys.path temporalmente para poder importar torch correctamente
-                current_dir = os.path.dirname(os.path.abspath(__file__))
-                if current_dir not in sys.path:
-                    sys.path.append(current_dir)
-                
-                # Cargar el modelo con torch directamente
-                device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-                model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-                return model
-    
+            model = yolov5.load(model_path)
+            return model
     except Exception as e:
-        st.error(f"❌ Error al cargar el modelo: {str(e)}")
-        st.info("""
-        Recomendaciones:
-        1. Instalar una versión compatible de PyTorch y YOLOv5:
-           ```
-           pip install torch==1.12.0 torchvision==0.13.0
-           pip install yolov5==7.0.9
-           ```
-        2. Asegúrate de tener el archivo del modelo en la ubicación correcta
-        3. Si el problema persiste, intenta descargar el modelo directamente de torch hub
-        """)
-        return None
+        st.error(f"❌ Error al cargar el modelo: {e}")
+        st.info("Prueba instalar YOLOv5 con: `pip install yolov5`")
+        try:
+            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+            return model
+        except Exception as e2:
+            st.error(f"No se pudo cargar desde Torch Hub: {e2}")
+            return None
 
-# Título y descripción de la aplicación
-st.title("🔍 Detección de Objetos en Imágenes")
+# 🧩 TÍTULO PRINCIPAL
+st.title("🤖 Detección de Objetos con YOLOv5")
 st.markdown("""
-Esta aplicación utiliza YOLOv5 para detectar objetos en imágenes capturadas con tu cámara.
-Ajusta los parámetros en la barra lateral para personalizar la detección.
+Bienvenido al laboratorio de visión computacional.  
+Esta aplicación utiliza **YOLOv5** para detectar objetos en imágenes en tiempo real.  
+Ajusta los parámetros y observa cómo el modelo identifica elementos visuales 🔍
 """)
 
-# Cargar el modelo
-with st.spinner("Cargando modelo YOLOv5..."):
+# ⚡ CARGA DEL MODELO
+with st.spinner("🧠 Cargando modelo YOLOv5..."):
     model = load_yolov5_model()
 
-# Si el modelo se cargó correctamente, configuramos los parámetros
+# 🚀 INTERFAZ PRINCIPAL
 if model:
-    # Sidebar para los parámetros de configuración
-    st.sidebar.title("Parámetros")
+    st.sidebar.title("🎚️ Parámetros de Detección")
+    model.conf = st.sidebar.slider('Confianza mínima', 0.0, 1.0, 0.25, 0.01)
+    model.iou = st.sidebar.slider('Umbral IoU', 0.0, 1.0, 0.45, 0.01)
     
-    # Ajustar parámetros del modelo
-    with st.sidebar:
-        st.subheader('Configuración de detección')
-        model.conf = st.slider('Confianza mínima', 0.0, 1.0, 0.25, 0.01)
-        model.iou = st.slider('Umbral IoU', 0.0, 1.0, 0.45, 0.01)
-        st.caption(f"Confianza: {model.conf:.2f} | IoU: {model.iou:.2f}")
-        
-        # Opciones adicionales
-        st.subheader('Opciones avanzadas')
+    with st.sidebar.expander("⚙️ Opciones avanzadas"):
         try:
             model.agnostic = st.checkbox('NMS class-agnostic', False)
             model.multi_label = st.checkbox('Múltiples etiquetas por caja', False)
             model.max_det = st.number_input('Detecciones máximas', 10, 2000, 1000, 10)
         except:
-            st.warning("Algunas opciones avanzadas no están disponibles con esta configuración")
-    
-    # Contenedor principal para la cámara y resultados
-    main_container = st.container()
-    
-    with main_container:
-        # Capturar foto con la cámara
-        picture = st.camera_input("Capturar imagen", key="camera")
-        
-        if picture:
-            # Procesar la imagen capturada
-            bytes_data = picture.getvalue()
-            cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
-            
-            # Realizar la detección
-            with st.spinner("Detectando objetos..."):
-                try:
-                    results = model(cv2_img)
-                except Exception as e:
-                    st.error(f"Error durante la detección: {str(e)}")
-                    st.stop()
-            
-            # Parsear resultados
+            st.warning("Opciones avanzadas limitadas para este modelo")
+
+    # 📸 CAPTURA DE IMAGEN
+    st.markdown("### 📷 Captura de imagen o carga manual")
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        picture = st.camera_input("Toma una foto con tu cámara", key="camara_input")
+    with col2:
+        uploaded = st.file_uploader("O sube una imagen:", type=["jpg", "jpeg", "png"])
+
+    if picture or uploaded:
+        image_source = picture if picture else uploaded
+        bytes_data = image_source.getvalue()
+        cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
+
+        # 🔍 DETECCIÓN
+        with st.spinner("🛰️ Analizando imagen..."):
             try:
-                predictions = results.pred[0]
+                results = model(cv2_img)
+                results.render()
+            except Exception as e:
+                st.error(f"Error durante la detección: {e}")
+                st.stop()
+
+        # 📊 VISUALIZACIÓN DE RESULTADOS
+        st.markdown("## 🧩 Resultados de Detección")
+
+        col_img, col_data = st.columns(2)
+        with col_img:
+            st.image(cv2_img, channels="BGR", use_container_width=True, caption="🧠 Imagen procesada")
+        
+        with col_data:
+            predictions = results.pred[0]
+            if len(predictions) > 0:
                 boxes = predictions[:, :4]
                 scores = predictions[:, 4]
                 categories = predictions[:, 5]
-                
-                # Mostrar resultados
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.subheader("Imagen con detecciones")
-                    # Renderizar las detecciones
-                    results.render()
-                    # Mostrar imagen con las detecciones
-                    st.image(cv2_img, channels='BGR', use_container_width=True)
-                
-                with col2:
-                    st.subheader("Objetos detectados")
-                    
-                    # Obtener nombres de etiquetas
-                    label_names = model.names
-                    
-                    # Contar categorías
-                    category_count = {}
-                    for category in categories:
-                        category_idx = int(category.item()) if hasattr(category, 'item') else int(category)
-                        if category_idx in category_count:
-                            category_count[category_idx] += 1
-                        else:
-                            category_count[category_idx] = 1
-                    
-                    # Crear dataframe para mostrar resultados
-                    data = []
-                    for category, count in category_count.items():
-                        label = label_names[category]
-                        confidence = scores[categories == category].mean().item() if len(scores) > 0 else 0
-                        data.append({
-                            "Categoría": label,
-                            "Cantidad": count,
-                            "Confianza promedio": f"{confidence:.2f}"
-                        })
-                    
-                    if data:
-                        df = pd.DataFrame(data)
-                        st.dataframe(df, use_container_width=True)
-                        
-                        # Mostrar gráfico de barras
-                        st.bar_chart(df.set_index('Categoría')['Cantidad'])
-                    else:
-                        st.info("No se detectaron objetos con los parámetros actuales.")
-                        st.caption("Prueba a reducir el umbral de confianza en la barra lateral.")
-            except Exception as e:
-                st.error(f"Error al procesar los resultados: {str(e)}")
-                st.stop()
+                labels = model.names
+
+                category_count = {}
+                for c in categories:
+                    idx = int(c.item())
+                    category_count[idx] = category_count.get(idx, 0) + 1
+
+                data = []
+                for idx, count in category_count.items():
+                    label = labels[idx]
+                    conf = scores[categories == idx].mean().item()
+                    data.append({
+                        "Categoría": label,
+                        "Cantidad": count,
+                        "Confianza Promedio": f"{conf:.2f}"
+                    })
+
+                df = pd.DataFrame(data)
+                st.dataframe(df, use_container_width=True)
+                st.bar_chart(df.set_index("Categoría")["Cantidad"])
+            else:
+                st.info("No se detectaron objetos. Intenta reducir el umbral de confianza.")
 else:
-    st.error("No se pudo cargar el modelo. Por favor verifica las dependencias e inténtalo nuevamente.")
+    st.error("🚨 No se pudo cargar el modelo YOLOv5. Verifica tu instalación.")
     st.stop()
 
-# Información adicional y pie de página
+# 💡 PIE DE PÁGINA
 st.markdown("---")
-st.caption("""
-**Acerca de la aplicación**: Esta aplicación utiliza YOLOv5 para detección de objetos en tiempo real.
-Desarrollada con Streamlit y PyTorch.
+st.markdown("""
+### ⚙️ Sobre esta app
+- Modelo: **YOLOv5 Small (pre-entrenado en COCO)**  
+- Librerías: `torch`, `yolov5`, `streamlit`, `opencv`, `numpy`, `pandas`  
+- Ejecuta detección de objetos en imágenes de cámara o carga manual  
 """)
+st.caption("🌌 Desarrollado con pasión por la visión artificial y el diseño elegante 🧠💫")
