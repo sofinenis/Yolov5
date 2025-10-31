@@ -1,57 +1,63 @@
 import cv2
 import streamlit as st
 import numpy as np
+import cv2
+import streamlit as st
+import numpy as np
 import pandas as pd
 import torch
 import os
 import sys
 
-# ⚙️ CONFIGURACIÓN GENERAL
+# 🌻 Configuración de la página
 st.set_page_config(
-    page_title="🔍 Detección de Objetos en Tiempo Real",
-    page_icon="🤖",
+    page_title="🌻 Detección de Objetos entre Girasoles",
+    page_icon="🌻",
     layout="wide"
 )
 
-# 🎨 ESTILOS PERSONALIZADOS (modo oscuro con neón)
+# 🌻 Estilos personalizados
 st.markdown("""
 <style>
 body {
-    background-color: #0e1117;
-    color: #e0e0e0;
+    background-color: #fff8dc;
+    color: #4a3000;
 }
 .main {
-    background-color: #0e1117;
-    border-radius: 12px;
-    padding: 1rem;
+    background-color: #fffbea;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0px 0px 25px #f1c40f50;
 }
-h1, h2, h3, h4 {
-    color: #00ffc3;
-    text-shadow: 0 0 15px #00ffc3;
+h1, h2, h3 {
+    color: #d4a017;
+    text-align: center;
+    font-family: 'Comic Sans MS', cursive;
 }
 .stButton>button {
-    background-color: #00ffc3;
-    color: #0e1117;
-    border-radius: 8px;
+    background-color: #f4d03f;
+    color: #4a3000;
+    border-radius: 10px;
+    border: 2px solid #d4a017;
     font-weight: bold;
-    border: none;
     transition: 0.3s;
 }
 .stButton>button:hover {
+    background-color: #f1c40f;
     transform: scale(1.05);
-    background-color: #00e6af;
+    border-color: #b8860b;
 }
 .stSidebar {
-    background-color: #111418;
+    background-color: #fff8dc !important;
 }
 .dataframe th {
-    background-color: #00ffc3 !important;
-    color: #0e1117 !important;
+    background-color: #f9e79f !important;
+    color: #4a3000 !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# 🧠 FUNCIÓN PARA CARGAR MODELO YOLOv5
+# 🌻 Función para cargar el modelo YOLOv5
 @st.cache_resource
 def load_yolov5_model(model_path='yolov5s.pt'):
     try:
@@ -63,58 +69,57 @@ def load_yolov5_model(model_path='yolov5s.pt'):
             model = yolov5.load(model_path)
             return model
     except Exception as e:
-        st.error(f"❌ Error al cargar el modelo: {e}")
-        st.info("Prueba instalar YOLOv5 con: `pip install yolov5`")
+        st.error(f"🌻 No se pudo cargar el modelo: {e}")
         try:
             device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
             model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
             return model
         except Exception as e2:
-            st.error(f"No se pudo cargar desde Torch Hub: {e2}")
+            st.error(f"Error alternativo: {e2}")
             return None
 
-# 🧩 TÍTULO PRINCIPAL
-st.title("🤖 Detección de Objetos con YOLOv5")
+# 🌻 Título principal
+st.title("🌻 Detección de Objetos entre Girasoles 🌞")
 st.markdown("""
-Bienvenido al laboratorio de visión computacional.  
-Esta aplicación utiliza **YOLOv5** para detectar objetos en imágenes en tiempo real.  
-Ajusta los parámetros y observa cómo el modelo identifica elementos visuales 🔍
+Imagina que estás en un campo de girasoles mientras una inteligencia artificial 🌼  
+observa cada detalle y detecta los objetos que te rodean 🌻✨  
+Utiliza **YOLOv5** para reconocer elementos en tus imágenes.
 """)
 
-# ⚡ CARGA DEL MODELO
-with st.spinner("🧠 Cargando modelo YOLOv5..."):
+# 🌻 Carga del modelo
+with st.spinner("🌻 Cargando el modelo YOLOv5..."):
     model = load_yolov5_model()
 
-# 🚀 INTERFAZ PRINCIPAL
 if model:
-    st.sidebar.title("🎚️ Parámetros de Detección")
-    model.conf = st.sidebar.slider('Confianza mínima', 0.0, 1.0, 0.25, 0.01)
-    model.iou = st.sidebar.slider('Umbral IoU', 0.0, 1.0, 0.45, 0.01)
-    
-    with st.sidebar.expander("⚙️ Opciones avanzadas"):
+    st.sidebar.title("🌼 Parámetros de Detección")
+    model.conf = st.sidebar.slider('Nivel de confianza 🌞', 0.0, 1.0, 0.25, 0.01)
+    model.iou = st.sidebar.slider('Umbral IoU 🌻', 0.0, 1.0, 0.45, 0.01)
+
+    with st.sidebar.expander("🌸 Opciones avanzadas"):
         try:
             model.agnostic = st.checkbox('NMS class-agnostic', False)
             model.multi_label = st.checkbox('Múltiples etiquetas por caja', False)
             model.max_det = st.number_input('Detecciones máximas', 10, 2000, 1000, 10)
         except:
-            st.warning("Opciones avanzadas limitadas para este modelo")
+            st.warning("🌻 Algunas opciones no están disponibles.")
 
-    # 📸 CAPTURA DE IMAGEN
-    st.markdown("### 📷 Captura de imagen o carga manual")
+    # 🌻 Captura de imagen o carga manual
+    st.markdown("### 📸 Toma una foto o sube una imagen 🌼")
     col1, col2 = st.columns([2, 1])
 
     with col1:
-        picture = st.camera_input("Toma una foto con tu cámara", key="camara_input")
+        picture = st.camera_input("Captura con tu cámara 🌻", key="camara_input")
+
     with col2:
-        uploaded = st.file_uploader("O sube una imagen:", type=["jpg", "jpeg", "png"])
+        uploaded = st.file_uploader("O sube una imagen desde tu campo de girasoles 🌞", type=["jpg", "jpeg", "png"])
 
     if picture or uploaded:
         image_source = picture if picture else uploaded
         bytes_data = image_source.getvalue()
         cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
 
-        # 🔍 DETECCIÓN
-        with st.spinner("🛰️ Analizando imagen..."):
+        # 🌻 Detección
+        with st.spinner("🌻 Analizando imagen... floreciendo resultados 🌼"):
             try:
                 results = model(cv2_img)
                 results.render()
@@ -122,13 +127,13 @@ if model:
                 st.error(f"Error durante la detección: {e}")
                 st.stop()
 
-        # 📊 VISUALIZACIÓN DE RESULTADOS
-        st.markdown("## 🧩 Resultados de Detección")
+        # 🌼 Visualización
+        st.markdown("## 🌞 Resultados del campo de visión 🌻")
 
         col_img, col_data = st.columns(2)
         with col_img:
-            st.image(cv2_img, channels="BGR", use_container_width=True, caption="🧠 Imagen procesada")
-        
+            st.image(cv2_img, channels="BGR", use_container_width=True, caption="🌻 Imagen procesada con YOLOv5 🌼")
+
         with col_data:
             predictions = results.pred[0]
             if len(predictions) > 0:
@@ -147,26 +152,27 @@ if model:
                     label = labels[idx]
                     conf = scores[categories == idx].mean().item()
                     data.append({
-                        "Categoría": label,
-                        "Cantidad": count,
-                        "Confianza Promedio": f"{conf:.2f}"
+                        "Categoría 🌻": label,
+                        "Cantidad 🌼": count,
+                        "Confianza Promedio 🌞": f"{conf:.2f}"
                     })
 
                 df = pd.DataFrame(data)
                 st.dataframe(df, use_container_width=True)
-                st.bar_chart(df.set_index("Categoría")["Cantidad"])
+                st.bar_chart(df.set_index("Categoría 🌻")["Cantidad 🌼"])
             else:
-                st.info("No se detectaron objetos. Intenta reducir el umbral de confianza.")
+                st.info("🌻 No se detectaron objetos. ¡Prueba con otra flor! 🌼")
+
 else:
-    st.error("🚨 No se pudo cargar el modelo YOLOv5. Verifica tu instalación.")
+    st.error("🌻 No se pudo cargar el modelo YOLOv5. Verifica tu instalación e inténtalo de nuevo.")
     st.stop()
 
-# 💡 PIE DE PÁGINA
+# 🌻 Pie de página
 st.markdown("---")
 st.markdown("""
-### ⚙️ Sobre esta app
-- Modelo: **YOLOv5 Small (pre-entrenado en COCO)**  
-- Librerías: `torch`, `yolov5`, `streamlit`, `opencv`, `numpy`, `pandas`  
-- Ejecuta detección de objetos en imágenes de cámara o carga manual  
+### 🌼 Acerca de esta aplicación
+Esta versión floreciente usa **YOLOv5** para detectar objetos en imágenes,
+con un toque de **alegría y girasoles** 🌻.  
+Desarrollado con cariño, sol y código por ti 🌞.
 """)
-st.caption("🌌 Desarrollado con pasión por la visión artificial y el diseño elegante 🧠💫")
+st.caption("🌻 La tecnología también puede florecer 🌼")
